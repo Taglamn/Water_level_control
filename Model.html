@@ -16,30 +16,38 @@
 
     var camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 15000);
 
-    var renderer = new THREE.WebGLRenderer();
+    var renderer = new THREE.WebGLRenderer(
+        {antialias:true,
+        alpha:true}
+    );
 
     var controls = new THREE.OrbitControls(camera);
-
+    
     var dat_controls = {
         水流失速度: 0.1,
         水供给速度: 1,
         水位控制最低高度: 9,
         供给至高度: 36,
-        暂停: 0
+        开始: 0
     };
     var gui = new dat.GUI();
     var folder = gui.addFolder('菜单');
     gui.domElement.style ='position:absolute;top:0px;right:0px';
-    folder.add(dat_controls, '水流失速度',0.1,10);
-    folder.add(dat_controls, '水供给速度',0.1,10);
+    folder.add(dat_controls, '水流失速度',0.01,1);
+    folder.add(dat_controls, '水供给速度',0.01,1);
     folder.add(dat_controls, '水位控制最低高度',1,45);
     folder.add(dat_controls, '供给至高度',1,45);
-    folder.add(dat_controls, '暂停',0,1).step(1);
+    folder.add(dat_controls, '开始',0,1).step(1);
     folder.open();
 
     var light = new THREE.AmbientLight(0xff0000, 0.2, 100, 2);
-    light.position.set(0,100,0);
+    light.position.set(0,10,0);
     scene.add(light);
+    var light_point = new THREE.PointLight(0xffffff, 1, 0, 2);
+    light_point.position.set(100,100,100);
+    scene.add(light_point);
+    var light_directional = new THREE.DirectionalLight(0xffffff,1);
+    scene.add(light_directional);
 
     controls.enableDamping = true;
 
@@ -52,8 +60,8 @@
 
     //let body = new THREE.Object3D();
     let box = new THREE.Object3D();
-    box_tex = loader.load('img/timg2.jpg',function (texture) {
-        texture.wrapS = floor_tex.wrapT = THREE.RepeatWrapping;
+    box_tex = loader.load('img/timg.jpg',function (texture) {
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
         texture.repeat.set(4,4);
         texture.transparent = true;
     });
@@ -156,13 +164,21 @@
 
     var path = new CustomSinCurve( 10 );
     var geometry1 = new THREE.TubeGeometry( path, 20, 5, 80, false );
-    var material1 = new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 1,emissive : 0x888888})
+    var material1 = new THREE.MeshPhongMaterial({
+        color : 0x357bdb,
+        emissive : 0x000000,
+        specular : 0x357bdb
+    });
     var mesh = new THREE.Mesh( geometry1, material1 );
     mesh.position.set(0,-30,0);
     scene.add( mesh );//管子
 
     var torus = new THREE.Mesh(new THREE.TorusGeometry(5, 5, 25, 80, Math.PI / 2),
-        new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 1,emissive : 0x888888})
+        new THREE.MeshPhongMaterial({
+            color : 0x357bdb,
+            emissive : 0x000000,
+            specular : 0x357bdb
+        })
     );
     torus.position.set(5,-30,0);
     torus.rotation.x = Math.PI;
@@ -285,11 +301,8 @@
 
 
     let water_using,water_unused;
-    water_using = new THREE.Mesh(new THREE.BoxGeometry(45,45,40),new THREE.MeshPhongMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.5,
-        emissive: 0x00f0ff
+    water_using = new THREE.Mesh(new THREE.BoxGeometry(45,45,40),new THREE.MeshBasicMaterial({
+        color: 0x00f0ff
     }));
     water_using.position.y = 25;
     water_unused = new THREE.Object3D();
@@ -298,24 +311,44 @@
     scene.add(water_using);
     scene.add(water_unused);
 
-    var action_pau = {
-        paused : function () {
-            pause = 1-pause;
-        }
-    };
+    let wvb_outside = new THREE.Mesh(new THREE.CylinderGeometry(6,6,20,6,40),new THREE.MeshBasicMaterial());
+    let wvb_inside = new THREE.Mesh(new THREE.CylinderGeometry(5,5,20,40,40),new THREE.MeshBasicMaterial());
+    let bsp_wvb_outside = new ThreeBSP(wvb_outside);
+    let bsp_wvb_inside = new ThreeBSP(wvb_inside);
+    let bsp_wvb = bsp_wvb_outside.subtract(bsp_wvb_inside);
+    let water_valve_basic = new THREE.Mesh(bsp_wvb.toMesh().geometry,new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
+    water_valve_basic.position.set(100,10,0);
+    water_valve_basic.rotation.y += Math.PI/6;
+    let water_valve_bolt = new THREE.Mesh(new THREE.CylinderGeometry(2,2,1,40,40),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
+    water_valve_bolt.position.set(100,10,5.5);
+    water_valve_bolt.rotation.x = Math.PI/2;
+    let water_valve_bolt_con = new THREE.Mesh(new THREE.CylinderGeometry(1,1,1.5,40,40),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
+    water_valve_bolt_con.position.set(100,10,6.5);
+    water_valve_bolt_con.rotation.x = Math.PI/2;
+    let water_valve_bolt1 = new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.3,1,6,40),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
+    water_valve_bolt1.position.set(100,10,7.5);
+    water_valve_bolt1.rotation.x = Math.PI/2;
+    let water_valve_switch = new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,0.5,40,40),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
+    water_valve_switch.position.set(100,10,6.5);
+    water_valve_switch.rotation.x = Math.PI/2;
+    let water_valve_switch1 = new THREE.Mesh(new THREE.BoxGeometry(10,0.5,2.4),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
+    water_valve_switch1.position.x += 5;
+    water_valve_switch.add(water_valve_switch1);
+    scene.add(water_valve_switch);
+    scene.add(water_valve_bolt_con);
+    scene.add(water_valve_bolt);
+    scene.add(water_valve_bolt1);
+    scene.add(water_valve_basic);
 
-    camera.position.set(50,50,50);
-    camera.lookAt({
-        x:0,
-        y:0,
-        z:0
-    });
+    camera.position.set(193.65,121.39,261.4);
+    camera.rotation.set(-0.2417,0.474432,0.11214);
 
-    let i = 0,j = 0,lower=1,up=0,im,jm,pause = 1;
+    let i = 0,j = 0,lower = 1,up = 0,im = 0,jm = 0,pause = 1;
     function render() {
         im = dat_controls.水流失速度/100;
         jm = dat_controls.水供给速度/100;
-        pause = dat_controls.暂停;
+        water_valve_switch.rotation.y = dat_controls.水供给速度 * Math.PI/2;
+        pause = dat_controls.开始;
         controls.update();
         if (lower && pause) {
             i += im;
@@ -328,9 +361,11 @@
             if (j <= 1) {
                 i = i + im - jm;
                 water_using.scale.set(1, 1 - i, 1);
-                water_unused.scale.set(1, 1 - j, 1);
                 water_using.position.y += 22.5 * (jm - im);
-                water_unused.position.y -= 22.5 * jm;
+                if(!jm) {
+                    water_unused.scale.set(1, 1 - j, 1);
+                    water_unused.position.y -= 22.5 * jm;
+               }
             }
         }
         if (i >= 1 - dat_controls.水位控制最低高度 / 45 && lower && pause) {
@@ -344,9 +379,10 @@
             scene.remove(water_unused);
         if (i >= 1)
             scene.remove(water_using);
-
         renderer.render(scene, camera);
         requestAnimationFrame(render);
+        console.log(camera.position);
+        console.log(camera.rotation);
     }
 
     render();
