@@ -299,7 +299,7 @@
                 i = i + im - jm;
                 water_using.scale.set(1, 1 - i, 1);
                 water_using.position.y += 22.5 * (jm - im);
-                if(!jm) {
+                if(jm) {
                     water_unused.scale.set(1, 1 - j, 1);
                     water_unused.position.y -= 22.5 * jm;
                }
@@ -318,8 +318,6 @@
             scene.remove(water_using);
         renderer.render(scene, camera);
         requestAnimationFrame(render);
-        console.log(camera.position);
-        console.log(camera.rotation);
     }
     init_Light();
     init_Gui();
