@@ -8,342 +8,279 @@
 </head>
 <body>
 <script src="js/three.min.js"></script>
-<script src="orbitControlls.js"></script>
-<script src="threeBSP.js"></script>
-<script src="dat.gui.js"></script>
+<script src="js/orbitControlls.js"></script>
+<script src="js/threeBSP.js"></script>
+<script src="js/dat.gui.js"></script>
+<script src="js/addModel.js"></script>
+<script src="js/algorithm.js"></script>
 <script>
     var scene = new THREE.Scene();
 
     var camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 15000);
-
-    var renderer = new THREE.WebGLRenderer(
-        {antialias:true,
-        alpha:true}
-    );
-
-    var controls = new THREE.OrbitControls(camera);
-    
-    var dat_controls = {
-        水流失速度: 0.1,
-        水供给速度: 1,
-        水位控制最低高度: 9,
-        供给至高度: 36,
-        开始: 0
-    };
-    var gui = new dat.GUI();
-    var folder = gui.addFolder('菜单');
-    gui.domElement.style ='position:absolute;top:0px;right:0px';
-    folder.add(dat_controls, '水流失速度',0.01,1);
-    folder.add(dat_controls, '水供给速度',0.01,1);
-    folder.add(dat_controls, '水位控制最低高度',1,45);
-    folder.add(dat_controls, '供给至高度',1,45);
-    folder.add(dat_controls, '开始',0,1).step(1);
-    folder.open();
-
-    var light = new THREE.AmbientLight(0xff0000, 0.2, 100, 2);
-    light.position.set(0,10,0);
-    scene.add(light);
-    var light_point = new THREE.PointLight(0xffffff, 1, 0, 2);
-    light_point.position.set(100,100,100);
-    scene.add(light_point);
-    var light_directional = new THREE.DirectionalLight(0xffffff,1);
-    scene.add(light_directional);
-
-    controls.enableDamping = true;
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
-
-    document.body.appendChild(renderer.domElement);
-
-    let loader = new THREE.TextureLoader();
-
-
-    //let body = new THREE.Object3D();
-    let box = new THREE.Object3D();
-    box_tex = loader.load('img/timg.jpg',function (texture) {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(4,4);
-        texture.transparent = true;
-    });
-    let floor_tex = loader.load('img/floor1.jpg',function (floor_tex) {
-        floor_tex.wrapS = floor_tex.wrapT = THREE.RepeatWrapping;
-        floor_tex.repeat.set(4,4);
-    });
-    //带洞
-    let wall0 = new THREE.Mesh(
-        new THREE.BoxGeometry(55, 5, 50),
-        new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff})
-    );
-    let wall1 = new THREE.Mesh(
-        new THREE.BoxGeometry(45, 5, 45),
-        new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff})
-    );
-
-    wall1.position.x = 0;
-    wall1.position.y = 25;
-    wall1.position.z = -22.5;
-    wall1.rotation.x = Math.PI/2;
-    box.add(wall1);
-
-    let wall2 = new THREE.Mesh(
-        new THREE.BoxGeometry(45, 5, 45),
-        new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff})
-    );
-
-    wall2.position.x = 0;
-    wall2.position.y = 25;
-    wall2.position.z = 22.5;
-    wall2.rotation.x = Math.PI/2;
-    box.add(wall2);
-
-    let wall3 = new THREE.Mesh(
-        new THREE.BoxGeometry(45, 5, 50),
-        new THREE.MeshPhongMaterial({transparent : true,opacity: 0.5,emissive : 0xffffff})
-    );
-
-    wall3.position.x = 25;
-    wall3.position.y = 25;
-    wall3.position.z = 0;
-    wall3.rotation.z = Math.PI/2;
-    box.add(wall3);
-
-    let wall4 = new THREE.Mesh(
-        new THREE.BoxGeometry(45, 5, 50),
-        new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff})
-    );
-
-    wall4.position.x = -25;
-    wall4.position.y = 25;
-    wall4.position.z = 0;
-    wall4.rotation.z = Math.PI/2;
-    box.add(wall4);
-
-
-    let window1 = new THREE.Mesh(
-        new THREE.CylinderGeometry(5, 5 ,5 ,40 ,40),
-        new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff})
-    );
-
-    let bsp_wall = new ThreeBSP(wall0);
-    let bsp_window1 = new ThreeBSP(window1);
-    //开始计算从bsp_wall减去bsp_window1后的BSP对象
-    let BSP = bsp_wall.subtract(bsp_window1);
-    //获取结算结果中的geometry对象
-    let geometry = BSP.toMesh().geometry;
-    //生成计算结果的几何体
-    let res = new THREE.Mesh(
-        geometry,
-        new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff})
-    );
-    //将几何体添加到场景中
-    box.add(res);
-    box.position.set(0,0,0);
-    scene.add(box);
-
-
-    function CustomSinCurve( scale ) {
-
-        THREE.Curve.call( this );
-
-        this.scale = ( scale === undefined ) ? 1 : scale;
-
-    }
-
-    CustomSinCurve.prototype = Object.create( THREE.Curve.prototype );
-    CustomSinCurve.prototype.constructor = CustomSinCurve;
-
-    CustomSinCurve.prototype.getPoint = function ( t ) {
-
-        var tx = 0;
-        var ty = t*3;
-        var tz = 0;
-
-        return new THREE.Vector3( tx, ty, tz ).multiplyScalar( this.scale );
-
-    };
-
-    var path = new CustomSinCurve( 10 );
-    var geometry1 = new THREE.TubeGeometry( path, 20, 5, 80, false );
-    var material1 = new THREE.MeshPhongMaterial({
-        color : 0x357bdb,
-        emissive : 0x000000,
-        specular : 0x357bdb
-    });
-    var mesh = new THREE.Mesh( geometry1, material1 );
-    mesh.position.set(0,-30,0);
-    scene.add( mesh );//管子
-
-    var torus = new THREE.Mesh(new THREE.TorusGeometry(5, 5, 25, 80, Math.PI / 2),
-        new THREE.MeshPhongMaterial({
-            color : 0x357bdb,
-            emissive : 0x000000,
-            specular : 0x357bdb
-        })
-    );
-    torus.position.set(5,-30,0);
-    torus.rotation.x = Math.PI;
-    torus.rotation.y = Math.PI;
-    scene.add(torus);
-
-    let mesh1 = new THREE.Object3D();
-    mesh1 = mesh.clone();
-    mesh1.scale.set(1,3,1);
-    mesh1.rotation.z = -Math.PI/2;
-    mesh1.position.set(5,-35,0);
-    scene.add(mesh1);
-
-    var torus1 = new THREE.Object3D();
-    torus1 = torus.clone();
-    torus1.position.set(95,-30,0);
-    torus1.rotation.x = Math.PI;
-    torus1.rotation.y = 0;
-    torus1.rotation.z = 0;
-    scene.add(torus1);
-
-    let mesh2 = new THREE.Object3D();
-    mesh2 = mesh.clone();
-    mesh2.position.set(100,-30,0);
-    mesh2.scale.set(1,4,1);
-    scene.add(mesh2);
-
-    let bot_cap = new THREE.Mesh(new THREE.CylinderGeometry(5.5,5.5,10,40,40),new THREE.MeshBasicMaterial({}));
-    let top_cap = new THREE.Mesh(new THREE.CylinderGeometry(5,5,19,40,40),new THREE.MeshBasicMaterial({}));
-    top_cap.position.y = 5;
-    let sector1_cap = new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,14,40,40));
-    sector1_cap.position.x = 2.5;
-    let bsp_sector1 = new ThreeBSP(sector1_cap);
-
-    let bsp_bot = new ThreeBSP(bot_cap);
-    let bsp_top = new ThreeBSP(top_cap);
-    //开始计算从bsp_wall减去bsp_window1后的BSP对象
-    let BSP_cap = bsp_bot.subtract(bsp_top);
-    BSP_cap = BSP_cap.subtract(bsp_sector1);
-
-    //获取结算结果中的geometry对象
-    let cap_geometry = BSP_cap.toMesh().geometry;
-    //生成计算结果的几何体
-    let cap_res = new THREE.Mesh(
-        cap_geometry,
-        new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff})
-    );
-    //将几何体添加到场景中
-    let Plug_g = new THREE.CylinderGeometry(2.5,2.5,0.1,40,40);
-    let Plug = new THREE.Mesh(Plug_g,new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff}));
-    Plug.position.set(2.5,-0.5,0);
-    scene.add(Plug);
-    cap_res.position.set(0,-5,0);
-    cap_res.rotation.z = Math.PI;
-    scene.add(cap_res);
-
-    let box1 = new THREE.Object3D();
-    box1 = box.clone();
-    box1.position.set(100,90,0);
-    scene.add(box1);
-
-
-
-    let floor_mat = new THREE.MeshBasicMaterial({map:floor_tex});
-
-    let floor = new THREE.Mesh(new THREE.BoxGeometry(700,10,700),floor_mat);
-    //let floor = new THREE.Mesh(new THREE.BoxGeometry(700,10,700),new THREE.MeshPhongMaterial({color:0x999999}));
-    floor.position.set(0,-95,0);
-    floor.material.map.wrapS = THREE.RepeatWrapping;
-    floor.material.map.wrapT = THREE.RepeatWrapping;
-    scene.add(floor);
-
-    let room = new THREE.Object3D();
-    var r_wall_tex = loader.load('img/f_wall.jpg',function (texture) {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(4,4);
-    });
-    let r_wall1 = new THREE.Mesh(
-        new THREE.BoxGeometry(700, 50, 450),
-        new THREE.MeshBasicMaterial({color:0xffffff,map:r_wall_tex})
-    );
-
-    r_wall1.position.y = 130;
-    r_wall1.position.z = 350;
-    r_wall1.rotation.x = Math.PI/2;
-    room.add(r_wall1);
-
-    let r_wall2 = new THREE.Mesh(
-        new THREE.BoxGeometry(700, 50, 450),
-        new THREE.MeshBasicMaterial({color:0xffffff,map:r_wall_tex})
-    );
-
-    r_wall2.position.y = 130;
-    r_wall2.position.z = -350;
-    r_wall2.rotation.x = Math.PI/2;
-    room.add(r_wall2);
-
-    let r_wall3 = new THREE.Mesh(
-        new THREE.BoxGeometry(50, 450, 700),
-        new THREE.MeshBasicMaterial({color:0xffffff,map:r_wall_tex})
-    );
-
-    r_wall3.position.x = 350;
-    r_wall3.position.y = 130;
-    room.add(r_wall3);
-
-    let r_wall4 = new THREE.Mesh(
-        new THREE.BoxGeometry(50, 450, 700),
-        new THREE.MeshBasicMaterial({color:0xffffff,map:r_wall_tex})
-    );
-
-    r_wall4.position.x = -350;
-    r_wall4.position.y = 130;
-    r_wall4.material.map.wrapS = THREE.RepeatWrapping;
-    r_wall4.material.map.wrapT = THREE.RepeatWrapping;
-    room.add(r_wall4);
-
-    scene.add(room);
-
-
-
-    let water_using,water_unused;
-    water_using = new THREE.Mesh(new THREE.BoxGeometry(45,45,40),new THREE.MeshBasicMaterial({
-        color: 0x00f0ff
-    }));
-    water_using.position.y = 25;
-    water_unused = new THREE.Object3D();
-    water_unused = water_using.clone();
-    water_unused.position.set(100,115,0);
-    scene.add(water_using);
-    scene.add(water_unused);
-
-    let wvb_outside = new THREE.Mesh(new THREE.CylinderGeometry(6,6,20,6,40),new THREE.MeshBasicMaterial());
-    let wvb_inside = new THREE.Mesh(new THREE.CylinderGeometry(5,5,20,40,40),new THREE.MeshBasicMaterial());
-    let bsp_wvb_outside = new ThreeBSP(wvb_outside);
-    let bsp_wvb_inside = new ThreeBSP(wvb_inside);
-    let bsp_wvb = bsp_wvb_outside.subtract(bsp_wvb_inside);
-    let water_valve_basic = new THREE.Mesh(bsp_wvb.toMesh().geometry,new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
-    water_valve_basic.position.set(100,10,0);
-    water_valve_basic.rotation.y += Math.PI/6;
-    let water_valve_bolt = new THREE.Mesh(new THREE.CylinderGeometry(2,2,1,40,40),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
-    water_valve_bolt.position.set(100,10,5.5);
-    water_valve_bolt.rotation.x = Math.PI/2;
-    let water_valve_bolt_con = new THREE.Mesh(new THREE.CylinderGeometry(1,1,1.5,40,40),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
-    water_valve_bolt_con.position.set(100,10,6.5);
-    water_valve_bolt_con.rotation.x = Math.PI/2;
-    let water_valve_bolt1 = new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.3,1,6,40),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
-    water_valve_bolt1.position.set(100,10,7.5);
-    water_valve_bolt1.rotation.x = Math.PI/2;
-    let water_valve_switch = new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,0.5,40,40),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
-    water_valve_switch.position.set(100,10,6.5);
-    water_valve_switch.rotation.x = Math.PI/2;
-    let water_valve_switch1 = new THREE.Mesh(new THREE.BoxGeometry(10,0.5,2.4),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
-    water_valve_switch1.position.x += 5;
-    water_valve_switch.add(water_valve_switch1);
-    scene.add(water_valve_switch);
-    scene.add(water_valve_bolt_con);
-    scene.add(water_valve_bolt);
-    scene.add(water_valve_bolt1);
-    scene.add(water_valve_basic);
-
     camera.position.set(193.65,121.39,261.4);
     camera.rotation.set(-0.2417,0.474432,0.11214);
 
+    var renderer = new THREE.WebGLRenderer({
+        antialias:true,
+        alpha:true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    var gui = new dat.GUI();
+    var dat_controls;
+    var controls = new THREE.OrbitControls(camera);
+    controls.enableDamping = true;
+
+    let water_valve_switch;
+    let room = new THREE.Object3D();
+    let water_using,water_unused;
     let i = 0,j = 0,lower = 1,up = 0,im = 0,jm = 0,pause = 1;
+
+    function init_Light() {
+        var light = new THREE.AmbientLight(0xff0000, 0.2, 100, 2);
+        light.position.set(0,10,0);
+        scene.add(light);
+        var light_point = new THREE.PointLight(0xffffff, 1, 0, 2);
+        light_point.position.set(100,100,100);
+        scene.add(light_point);
+        var light_directional = new THREE.DirectionalLight(0xffffff,1);
+        scene.add(light_directional);
+    }
+
+    function init_Gui(){
+
+        dat_controls = {
+            水流失速度: 0.1,
+            水供给速度: 1,
+            水位控制最低高度: 9,
+            供给至高度: 36,
+            开始: 0
+        };
+        var folder = gui.addFolder('菜单');
+        gui.domElement.style ='position:absolute;top:0px;right:0px';
+        folder.add(dat_controls, '水流失速度',0.01,1);
+        folder.add(dat_controls, '水供给速度',0.01,1);
+        folder.add(dat_controls, '水位控制最低高度',1,45);
+        folder.add(dat_controls, '供给至高度',1,45);
+        folder.add(dat_controls, '开始',0,1).step(1);
+        folder.open();
+
+    }
+
+    function init_Box() {
+        let box = new THREE.Object3D();
+        box_tex = load_jpg_re('img/timg.jpg');
+        //带洞
+        let box_wall0 = translucent_box(55, 5, 50);
+
+        let box_wall1 = translucent_box(45, 5, 45, 0, 25, -22.5);
+        box_wall1.rotation.x = Math.PI/2;
+        box.add(box_wall1);
+
+        let box_wall2 = translucent_box(45, 5, 45, 0, 25, 22.5);
+        box_wall2.rotation.x = Math.PI/2;
+        box.add(box_wall2);
+
+        let box_wall3 = translucent_box(45, 5, 50, 25, 25, 0);
+        box_wall3.rotation.z = Math.PI/2;
+        box.add(box_wall3);
+
+        let box_wall4 = translucent_box(45, 5, 50, -25, 25, 0);
+        box_wall4.rotation.z = Math.PI/2;
+        box.add(box_wall4);
+
+        let hole = new THREE.Mesh(
+            new THREE.CylinderGeometry(5, 5 ,5 ,40 ,40),
+            new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff})
+        );
+
+        let box_wall0_with_hole = new THREE.Mesh(
+            bsp_sub(box_wall0,hole),
+            new THREE.MeshPhongMaterial({color : 0xffffff,transparent : true,opacity: 0.5,emissive : 0xffffff})
+        );
+        //将几何体添加到场景中
+        box.add(box_wall0_with_hole);
+        box.position.set(0,0,0);
+        let box1 = new THREE.Object3D();
+        box1 = box.clone();
+        box1.position.set(100,90,0);
+        scene.add(box1);
+        scene.add(box);
+    }
+
+    function init_Pipe() {
+        let pipe = new THREE.Object3D();
+        function CustomSinCurve( scale ) {
+
+            THREE.Curve.call( this );
+
+            this.scale = ( scale === undefined ) ? 1 : scale;
+
+        }
+
+        CustomSinCurve.prototype = Object.create( THREE.Curve.prototype );
+        CustomSinCurve.prototype.constructor = CustomSinCurve;
+
+        CustomSinCurve.prototype.getPoint = function ( t ) {
+
+            var tx = 0;
+            var ty = t*3;
+            var tz = 0;
+
+            return new THREE.Vector3( tx, ty, tz ).multiplyScalar( this.scale );
+
+        };
+
+        var path = new CustomSinCurve( 10 );
+        var geometry1 = new THREE.TubeGeometry( path, 20, 5, 80, false );
+        var material1 = new THREE.MeshPhongMaterial({
+            color : 0x357bdb,
+            specular : 0x357bdb
+        });
+        var straight_pipe = new THREE.Mesh( geometry1, material1 );
+        straight_pipe.position.set(0,-30,0);
+        pipe.add( straight_pipe );
+
+        var bent_pipe = new THREE.Mesh(new THREE.TorusGeometry(5, 5, 25, 80, Math.PI / 2),
+            new THREE.MeshPhongMaterial({
+                color : 0x357bdb,
+                specular : 0x357bdb
+            })
+        );
+        bent_pipe.position.set(5,-30,0);
+        bent_pipe.rotation.x = Math.PI;
+        bent_pipe.rotation.y = Math.PI;
+        pipe.add(bent_pipe);
+
+        let straight_pipe1 = new THREE.Object3D();
+        straight_pipe1 = straight_pipe.clone();
+        straight_pipe1.scale.set(1,3,1);
+        straight_pipe1.rotation.z = -Math.PI/2;
+        straight_pipe1.position.set(5,-35,0);
+        pipe.add(straight_pipe1);
+
+        var bent_pipe1 = new THREE.Object3D();
+        bent_pipe1 = bent_pipe.clone();
+        bent_pipe1.position.set(95,-30,0);
+        bent_pipe1.rotation.x = Math.PI;
+        bent_pipe1.rotation.y = 0;
+        bent_pipe1.rotation.z = 0;
+        pipe.add(bent_pipe1);
+
+        let straight_pipe2 = new THREE.Object3D();
+        straight_pipe2 = straight_pipe.clone();
+        straight_pipe2.position.set(100,-30,0);
+        straight_pipe2.scale.set(1,4,1);
+        pipe.add(straight_pipe2);
+
+        scene.add(pipe);
+
+        //开关
+    } //创建管子
+
+    function init_Pipes_Switch(){
+        let wvb_outside = new THREE.Mesh(new THREE.CylinderGeometry(6,6,20,6,40),new THREE.MeshBasicMaterial());
+        let wvb_inside = new THREE.Mesh(new THREE.CylinderGeometry(5,5,20,40,40),new THREE.MeshBasicMaterial());
+        let water_valve_basic = new THREE.Mesh(bsp_sub(wvb_outside, wvb_inside),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
+        water_valve_basic.position.set(100,10,0);
+        water_valve_basic.rotation.y += Math.PI/6;
+
+        let water_valve_bolt = golden_Cylinder(2,2,1,40,40);
+        water_valve_bolt.position.set(100,10,5.5);
+        water_valve_bolt.rotation.x = Math.PI/2;
+
+        let water_valve_bolt_con = golden_Cylinder(1,1,1.5,40,40);
+        water_valve_bolt_con.position.set(100,10,6.5);
+        water_valve_bolt_con.rotation.x = Math.PI/2;
+
+        let water_valve_bolt1 = golden_Cylinder(1.3,1.3,1,6,40);
+        water_valve_bolt1.position.set(100,10,7.5);
+        water_valve_bolt1.rotation.x = Math.PI/2;
+
+        water_valve_switch = golden_Cylinder(1.3,1.3,1,6,40);
+        water_valve_switch.position.set(100,10,6.5);
+        water_valve_switch.rotation.x = Math.PI/2;
+
+        let water_valve_switch1 = new THREE.Mesh(new THREE.BoxGeometry(10,0.5,2.4),new THREE.MeshPhongMaterial({color : 0xa38144,specular : 0xa38144}));
+        water_valve_switch1.position.x += 5;
+        water_valve_switch.add(water_valve_switch1);
+
+        scene.add(water_valve_switch);
+        scene.add(water_valve_bolt_con);
+        scene.add(water_valve_bolt);
+        scene.add(water_valve_bolt1);
+        scene.add(water_valve_basic);
+    }
+
+    function init_Room(){
+        let floor_tex = load_jpg_re('img/floor1.jpg');
+        let floor_mat = new THREE.MeshBasicMaterial({map:floor_tex});
+
+        let floor = new THREE.Mesh(new THREE.BoxGeometry(700,10,700),floor_mat);
+        floor.position.set(0,-95,0);
+        floor.material.map.wrapS = THREE.RepeatWrapping;
+        floor.material.map.wrapT = THREE.RepeatWrapping;
+        scene.add(floor);
+
+        var r_wall_tex = load_jpg_re('img/f_wall.jpg');
+        let r_wall1 = new THREE.Mesh(
+            new THREE.BoxGeometry(700, 50, 450),
+            new THREE.MeshBasicMaterial({color:0xffffff,map:r_wall_tex})
+        );
+
+        r_wall1.position.y = 130;
+        r_wall1.position.z = 350;
+        r_wall1.rotation.x = Math.PI/2;
+        room.add(r_wall1);
+
+        let r_wall2 = new THREE.Mesh(
+            new THREE.BoxGeometry(700, 50, 450),
+            new THREE.MeshBasicMaterial({color:0xffffff,map:r_wall_tex})
+        );
+
+        r_wall2.position.y = 130;
+        r_wall2.position.z = -350;
+        r_wall2.rotation.x = Math.PI/2;
+        room.add(r_wall2);
+
+        let r_wall3 = new THREE.Mesh(
+            new THREE.BoxGeometry(50, 450, 700),
+            new THREE.MeshBasicMaterial({color:0xffffff,map:r_wall_tex})
+        );
+
+        r_wall3.position.x = 350;
+        r_wall3.position.y = 130;
+        room.add(r_wall3);
+
+        let r_wall4 = new THREE.Mesh(
+            new THREE.BoxGeometry(50, 450, 700),
+            new THREE.MeshBasicMaterial({color:0xffffff,map:r_wall_tex})
+        );
+
+        r_wall4.position.x = -350;
+        r_wall4.position.y = 130;
+        r_wall4.material.map.wrapS = THREE.RepeatWrapping;
+        r_wall4.material.map.wrapT = THREE.RepeatWrapping;
+        room.add(r_wall4);
+
+        scene.add(room);
+    } //创建房间
+
+    function init_Water(){
+        water_using = new THREE.Mesh(new THREE.BoxGeometry(45,45,40),new THREE.MeshBasicMaterial({
+            color: 0x00f0ff
+        }));
+        water_using.position.y = 25;
+        water_unused = new THREE.Object3D();
+        water_unused = water_using.clone();
+        water_unused.position.set(100,115,0);
+        scene.add(water_using);
+        scene.add(water_unused);
+    }
+
+
+
     function render() {
         im = dat_controls.水流失速度/100;
         jm = dat_controls.水供给速度/100;
@@ -384,7 +321,13 @@
         console.log(camera.position);
         console.log(camera.rotation);
     }
-
+    init_Light();
+    init_Gui();
+    init_Box();
+    init_Pipe();
+    init_Pipes_Switch();
+    init_Water();
+    init_Room();
     render();
 </script>
 </body>
